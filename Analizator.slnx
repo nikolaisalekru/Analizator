@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Analizator/Analizator.csproj" Id="2412f326-335b-428c-be5c-fdc30cfe2b5c" />
+  <Project Path="Analizator.Cli/Analizator.Cli.csproj" />
+  <Project Path="Analizator.Core.Tests/Analizator.Core.Tests.csproj" />
+</Solution>

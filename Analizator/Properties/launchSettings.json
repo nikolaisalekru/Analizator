@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Analizator": {
+      "commandName": "Project",
+      "hotReloadEnabled": false,
+      "environmentVariables": {
+        "DOTNET_MODIFIABLE_ASSEMBLIES": "none"
+      }
+    }
+  }
+}
