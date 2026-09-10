@@ -113,7 +113,7 @@ public static class ReportingService
         sheet.Cell(1, 1).Style.Font.FontSize = 14;
         row++;
 
-        Section(sheet, ref row, "ЛИСТЫ ВЫГРУЗКИ");
+        Section(sheet, ref row, "ИСТОЧНИКИ ДАННЫХ");
         HeaderRow(sheet, row++, "Лист", "Установка", "Количество отчётов", "Статус");
         if (export.InstallationStatistics.Count == 0)
             StatusRow(sheet, row++, "#FFF2CC", "Нет данных");

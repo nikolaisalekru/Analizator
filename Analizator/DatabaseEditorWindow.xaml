@@ -1,0 +1,155 @@
+<Window x:Class="Analizator.DatabaseEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Редактор базы данных" Icon="Assets/AppIcon.ico"
+        Width="1240" Height="760" MinWidth="980" MinHeight="620"
+        WindowStartupLocation="CenterOwner" FlowDirection="LeftToRight">
+    <Grid Margin="26">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Записи базы данных" FontSize="26" FontWeight="SemiBold" />
+            <TextBlock Text="Поиск, добавление, изменение и удаление отдельных попыток"
+                       Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,18,0,16" Padding="16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="105" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Поиск по ФИО, установке, сценарию или файлу" FontSize="11"
+                               Foreground="{StaticResource MutedTextBrush}" Margin="1,0,0,4" />
+                    <TextBox x:Name="SearchTextBox" KeyDown="SearchTextBox_KeyDown" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Дата начала" FontSize="11" Foreground="{StaticResource MutedTextBrush}"
+                               Margin="1,0,0,4" />
+                    <DatePicker x:Name="StartDatePicker" Height="35" />
+                </StackPanel>
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="Дата окончания" FontSize="11" Foreground="{StaticResource MutedTextBrush}"
+                               Margin="1,0,0,4" />
+                    <DatePicker x:Name="EndDatePicker" Height="35" />
+                </StackPanel>
+                <Button Grid.Column="6" Content="Найти" VerticalAlignment="Bottom"
+                        Click="SearchButton_Click" Style="{StaticResource PrimaryButtonStyle}" />
+                <Button Grid.Column="8" Content="Сбросить" VerticalAlignment="Bottom"
+                        Click="ClearFiltersButton_Click" Style="{StaticResource SecondaryButtonStyle}" />
+                <StackPanel Grid.Row="1" Grid.ColumnSpan="9" Orientation="Horizontal" Margin="0,12,0,0">
+                    <StackPanel Width="125" Margin="0,0,12,0">
+                        <TextBlock Text="Время от (ЧЧ:ММ)" FontSize="11"
+                                   Foreground="{StaticResource MutedTextBrush}" Margin="1,0,0,4" />
+                        <TextBox x:Name="StartTimeTextBox" />
+                    </StackPanel>
+                    <StackPanel Width="125" Margin="0,0,12,0">
+                        <TextBlock Text="Время до (ЧЧ:ММ)" FontSize="11"
+                                   Foreground="{StaticResource MutedTextBrush}" Margin="1,0,0,4" />
+                        <TextBox x:Name="EndTimeTextBox" />
+                    </StackPanel>
+                    <StackPanel Width="180">
+                        <TextBlock Text="Повторы" FontSize="11"
+                                   Foreground="{StaticResource MutedTextBrush}" Margin="1,0,0,4" />
+                        <ComboBox x:Name="DuplicateFilterComboBox" Height="35" SelectedIndex="0">
+                            <ComboBoxItem Content="Все записи" />
+                            <ComboBoxItem Content="Только повторы" />
+                            <ComboBoxItem Content="Без повторов" />
+                        </ComboBox>
+                    </StackPanel>
+                    <TextBlock Text="Точные повторы исключаются из анализа автоматически; возможные остаются до проверки."
+                               Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                               VerticalAlignment="Bottom" Margin="18,0,0,9" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <DataGrid x:Name="AttemptsDataGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single"
+                  CanUserResizeColumns="True" FlowDirection="LeftToRight"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                  BorderBrush="{StaticResource BorderBrush}" MouseDoubleClick="AttemptsDataGrid_MouseDoubleClick"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                  EnableRowVirtualization="True" EnableColumnVirtualization="False">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="FlowDirection" Value="LeftToRight" />
+                    <Setter Property="HorizontalContentAlignment" Value="Left" />
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Guid" Binding="{Binding SessionGuid}" Width="210" />
+                <DataGridTextColumn Header="MachineName" Binding="{Binding MachineName}" Width="140" />
+                <DataGridTextColumn Header="PlantName" Binding="{Binding PlantNameDisplay}" Width="150" />
+                <DataGridTextColumn Header="StudentSerial" Binding="{Binding StudentSerial}" Width="115" />
+                <DataGridTextColumn Header="StudentName" Binding="{Binding DisplayPersonName}" Width="220" />
+                <DataGridTextColumn Header="EntryDate" Binding="{Binding EntryDate, StringFormat=dd.MM.yyyy}" Width="105" />
+                <DataGridTextColumn Header="StartDate" Binding="{Binding SessionStartDate, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="155" />
+                <DataGridTextColumn Header="EndDate" Binding="{Binding SessionEndDate, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="155" />
+                <DataGridTextColumn Header="TrainingTimes" Binding="{Binding TrainingTimesDisplay}" Width="105" />
+                <DataGridTextColumn Header="ExerciseLogs" Binding="{Binding ExerciseLogsDisplay}" Width="105" />
+                <DataGridTextColumn Header="IsClosed" Binding="{Binding IsClosedDisplay}" Width="85" />
+                <DataGridTextColumn Header="Дата" Binding="{Binding AttemptDateDisplay}" Width="100" />
+                <DataGridTextColumn Header="Время" Binding="{Binding AttemptTimeDisplay}" Width="80" />
+                <DataGridTextColumn Header="ExerciseName" Binding="{Binding ScenarioName}" Width="330" />
+                <DataGridTextColumn Header="Role" Binding="{Binding Role}" Width="105" />
+                <DataGridTextColumn Header="Resume" Binding="{Binding Resume}" Width="75" />
+                <DataGridTextColumn Header="Result" Binding="{Binding ResultDisplay}" Width="75" />
+                <DataGridTextColumn Header="Steps" Binding="{Binding Actions}" Width="70" />
+                <DataGridTextColumn Header="Percent" Binding="{Binding Percent, StringFormat=0.##}" Width="75" />
+                <DataGridTextColumn Header="TimeSpent" Binding="{Binding Duration}" Width="95" />
+                <DataGridTextColumn Header="IsValid" Binding="{Binding IsValidDisplay}" Width="75" />
+                <DataGridTextColumn Header="ReportType" Binding="{Binding ReportType}" Width="90" />
+                <DataGridTextColumn Header="HasReportFile" Binding="{Binding HasReportFileDisplay}" Width="110" />
+                <DataGridTextColumn Header="FilePath" Binding="{Binding FilePath}" Width="320" />
+                <DataGridTextColumn Header="ReportFile" Binding="{Binding ReportFile}" Width="180" />
+                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="135" />
+                <DataGridTextColumn Header="Project" Binding="{Binding Project}" Width="150" />
+                <DataGridTextColumn Header="Источник" Binding="{Binding SourceFile}" Width="175" />
+                <DataGridTextColumn Header="Повтор" Binding="{Binding PossibleDuplicateDisplay}" Width="90" />
+                <DataGridTextColumn Header="Основание повтора" Binding="{Binding DuplicateReason}" Width="340" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="3" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Content="Добавить запись" Width="140" Click="AddButton_Click"
+                    Style="{StaticResource PrimaryButtonStyle}" />
+            <Button Grid.Column="2" Content="Изменить" Width="110" Click="EditButton_Click"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+            <Button Grid.Column="4" Content="Удалить" Width="105" Click="DeleteButton_Click"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Столбцы…" Width="110" Margin="0,0,14,0"
+                        Click="ColumnsButton_Click" Style="{StaticResource SecondaryButtonStyle}" />
+                <TextBlock x:Name="ResultText" Foreground="{StaticResource MutedTextBrush}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

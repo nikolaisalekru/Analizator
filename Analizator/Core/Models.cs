@@ -2,13 +2,22 @@ using System.Collections.ObjectModel;
 
 namespace Analizator.Core;
 
+public enum AnalysisDataSourceKind
+{
+    Excel,
+    Database
+}
+
 public sealed record AnalyzerRequest(
     string AnalysisFile,
     string ExportFile,
     string OutputDirectory,
     string ConfigurationDirectory,
     bool CreateBackup = true,
-    bool AutoAddNewPeople = true);
+    bool AutoAddNewPeople = true,
+    AnalysisDataSourceKind DataSource = AnalysisDataSourceKind.Excel,
+    string? DatabasePath = null,
+    DateTime? DatabaseMonth = null);
 
 public sealed record AnalyzerProgress(int Percent, string Stage, string? Detail = null);
 
@@ -32,8 +41,25 @@ public sealed class AnalyzerSettings
     public ModeFilterSettings ModeFilter { get; init; } = new();
     public AutoAddSettings AutoAddNewPeople { get; init; } = new();
     public PassingThresholdSettings PassingThreshold { get; init; } = new();
+    public DatabaseBackupSettings DatabaseBackups { get; init; } = new();
+    public DatabaseEditorSettings DatabaseEditor { get; init; } = new();
     public bool ParallelProcessing { get; init; } = true;
     public int MaxWorkers { get; init; } = 5;
+}
+
+public sealed class DatabaseBackupSettings
+{
+    public bool AutomaticBackupsEnabled { get; init; } = true;
+    public int IntervalDays { get; init; } = 15;
+    public int MaximumBackupFiles { get; init; } = 2;
+    public bool BackupBeforeChanges { get; init; } = true;
+    public bool ConfirmRowDeletion { get; init; } = true;
+    public bool ConfirmSourceDeletion { get; init; } = true;
+}
+
+public sealed class DatabaseEditorSettings
+{
+    public HashSet<string> HiddenColumns { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class PassingThresholdSettings

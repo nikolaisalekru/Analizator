@@ -1,0 +1,51 @@
+<Window x:Class="Analizator.DatabaseColumnsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Столбцы редактора базы" Icon="Assets/AppIcon.ico"
+        Width="600" Height="650" MinWidth="500" MinHeight="500"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Видимые столбцы" FontSize="25" FontWeight="SemiBold" />
+            <TextBlock Text="Снимите флажки со столбцов, которые не нужны в таблице"
+                       Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <Button Content="Показать все" Width="125" Margin="0,0,10,0"
+                    Click="ShowAllButton_Click" Style="{StaticResource SecondaryButtonStyle}" />
+            <Button Content="Скрыть все" Width="115"
+                    Click="HideAllButton_Click" Style="{StaticResource SecondaryButtonStyle}" />
+        </StackPanel>
+
+        <Border Grid.Row="4" Style="{StaticResource CardStyle}" Padding="14">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="ColumnsItemsControl">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsVisible}"
+                                      Margin="4,7" FontSize="13" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Отмена" Width="105" Margin="0,0,10,0" IsCancel="True"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+            <Button Content="Применить" Width="125" IsDefault="True"
+                    Click="ApplyButton_Click" Style="{StaticResource PrimaryButtonStyle}" />
+        </StackPanel>
+    </Grid>
+</Window>

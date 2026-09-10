@@ -36,7 +36,9 @@ public sealed class AnalyzerService
             Log("АНАЛИЗАТОР ПРОХОЖДЕНИЯ КТК — C# CORE");
             Log($"Начало: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
             Log($"Файл анализа: {request.AnalysisFile}");
-            Log($"Файл выгрузки: {request.ExportFile}");
+            Log(request.DataSource == AnalysisDataSourceKind.Database
+                ? $"Источник результатов: база данных {request.DatabasePath}"
+                : $"Файл выгрузки: {request.ExportFile}");
             cancellationToken.ThrowIfCancellationRequested();
 
             if (request.CreateBackup)
@@ -52,18 +54,38 @@ public sealed class AnalyzerService
             var configuration = ConfigurationService.Load(request.ConfigurationDirectory);
             Log($"Загружено установок: {configuration.Installations.Count}");
 
-            var month = TextNormalization.MonthFromFileName(request.ExportFile)
+            int month;
+            ExportReadResult export;
+            if (request.DataSource == AnalysisDataSourceKind.Database)
+            {
+                var selectedMonth = request.DatabaseMonth!.Value;
+                var periodStart = new DateTime(selectedMonth.Year, selectedMonth.Month, 1);
+                var periodEnd = periodStart.AddMonths(1).AddDays(-1);
+                month = selectedMonth.Month;
+                Log($"Период базы: {periodStart:dd.MM.yyyy} — {periodEnd:dd.MM.yyyy}");
+                progress?.Report(new AnalyzerProgress(18, "Чтение данных из базы"));
+                export = new TrainingDatabaseService(request.DatabasePath!).ReadForAnalysis(
+                    periodStart,
+                    periodEnd,
+                    configuration.Settings.ModeFilter);
+                if (export.TotalReports == 0)
+                    throw new InvalidOperationException(
+                        $"В базе нет записей для анализа за {TextNormalization.MonthNames[month]} {selectedMonth.Year}.");
+            }
+            else
+            {
+                month = TextNormalization.MonthFromFileName(request.ExportFile)
                         ?? throw new InvalidOperationException(
                             $"Не удалось определить месяц по имени файла выгрузки: {Path.GetFileName(request.ExportFile)}");
-            Log($"Месяц выгрузки: {TextNormalization.MonthNames[month]} (№{month})");
-
-            progress?.Report(new AnalyzerProgress(18, "Чтение выгрузки КТК"));
-            var export = ExportWorkbookReader.Read(
-                request.ExportFile,
-                configuration.Installations,
-                configuration.Settings.ModeFilter,
-                cancellationToken,
-                Log);
+                progress?.Report(new AnalyzerProgress(18, "Чтение выгрузки КТК"));
+                export = ExportWorkbookReader.Read(
+                    request.ExportFile,
+                    configuration.Installations,
+                    configuration.Settings.ModeFilter,
+                    cancellationToken,
+                    Log);
+            }
+            Log($"Месяц анализа: {TextNormalization.MonthNames[month]} (№{month})");
             Log($"Принято отчётов: {export.TotalReports}");
 
             progress?.Report(new AnalyzerProgress(28, "Открытие книги анализа"));
@@ -158,12 +180,21 @@ public sealed class AnalyzerService
     {
         if (!File.Exists(request.AnalysisFile))
             throw new FileNotFoundException("Файл анализа не найден.", request.AnalysisFile);
-        if (!File.Exists(request.ExportFile))
-            throw new FileNotFoundException("Файл выгрузки не найден.", request.ExportFile);
         var analysisExtension = Path.GetExtension(request.AnalysisFile);
-        var exportExtension = Path.GetExtension(request.ExportFile);
         if (analysisExtension is not ".xlsx" and not ".xlsm" && analysisExtension is not ".XLSX" and not ".XLSM")
             throw new InvalidDataException("Файл анализа должен иметь формат XLSX или XLSM.");
+        if (request.DataSource == AnalysisDataSourceKind.Database)
+        {
+            if (string.IsNullOrWhiteSpace(request.DatabasePath) || !File.Exists(request.DatabasePath))
+                throw new FileNotFoundException("Файл базы данных не найден.", request.DatabasePath);
+            if (!request.DatabaseMonth.HasValue)
+                throw new ArgumentException("Не выбран месяц базы данных для анализа.");
+            return;
+        }
+
+        if (!File.Exists(request.ExportFile))
+            throw new FileNotFoundException("Файл выгрузки не найден.", request.ExportFile);
+        var exportExtension = Path.GetExtension(request.ExportFile);
         if (exportExtension is not ".xlsx" and not ".xlsm" && exportExtension is not ".XLSX" and not ".XLSM")
             throw new InvalidDataException("Файл выгрузки должен иметь формат XLSX или XLSM.");
         if (string.Equals(Path.GetFullPath(request.AnalysisFile), Path.GetFullPath(request.ExportFile), StringComparison.OrdinalIgnoreCase))

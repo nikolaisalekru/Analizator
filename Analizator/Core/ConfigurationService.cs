@@ -42,6 +42,103 @@ public static class ConfigurationService
         };
     }
 
+    public static EditableConfigurationData LoadEditable(string directory)
+    {
+        var configuration = Load(directory);
+        return new EditableConfigurationData
+        {
+            Installations = LoadEditableInstallations(Path.Combine(directory, "installations.json")),
+            FioKeys = LoadEditableFioKeys(Path.Combine(directory, "fio_keys.json")),
+            ExcludedPeople = LoadEditableExcludedPeople(Path.Combine(directory, "excluded_people.json")),
+            Settings = configuration.Settings
+        };
+    }
+
+    public static void SaveInstallations(
+        string directory,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> installations)
+    {
+        if (installations.Count == 0)
+            throw new ArgumentException("Должна остаться хотя бы одна установка.");
+
+        var root = new JsonObject();
+        foreach (var item in installations.OrderBy(item => item.Key, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var canonical = item.Key.Trim();
+            if (canonical.Length == 0)
+                throw new ArgumentException("Название установки не может быть пустым.");
+            if (root.ContainsKey(canonical))
+                throw new ArgumentException($"Установка «{canonical}» указана несколько раз.");
+
+            var aliases = new List<string> { canonical };
+            foreach (var alias in item.Value)
+                AddUnique(aliases, alias);
+            root[canonical] = new JsonArray(aliases.Select(value => JsonValue.Create(value)).ToArray());
+        }
+
+        WriteConfigurationFile(directory, "installations.json", root);
+    }
+
+    public static void SaveFioKeys(
+        string directory,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> sections)
+    {
+        var root = new JsonObject();
+        foreach (var section in sections.OrderBy(item => item.Key, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var sectionName = section.Key.Trim();
+            if (sectionName.Length == 0)
+                throw new ArgumentException("Название раздела не может быть пустым.");
+
+            var values = new JsonObject();
+            foreach (var item in section.Value.OrderBy(item => item.Key, StringComparer.CurrentCultureIgnoreCase))
+            {
+                var abbreviation = item.Key.Trim();
+                var fullName = item.Value.Trim();
+                if (abbreviation.Length == 0 || fullName.Length == 0)
+                    throw new ArgumentException("Сокращение и полное ФИО должны быть заполнены.");
+                values[abbreviation] = fullName;
+            }
+            root[sectionName] = values;
+        }
+
+        WriteConfigurationFile(directory, "fio_keys.json", root);
+    }
+
+    public static void SaveExcludedPeople(string directory, IEnumerable<string> people)
+    {
+        var values = people
+            .Select(value => value.Trim())
+            .Where(value => value.Length > 0)
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase)
+            .Select(value => JsonValue.Create(value))
+            .ToArray();
+        WriteConfigurationFile(directory, "excluded_people.json", new JsonObject
+        {
+            ["people"] = new JsonArray(values)
+        });
+    }
+
+    public static void SaveAnalysisSettings(
+        string directory,
+        bool parallelProcessing,
+        int maximumWorkers,
+        bool autoAddNewPeople)
+    {
+        if (maximumWorkers is < 1 or > 64)
+            throw new ArgumentException("Количество параллельных обработчиков должно быть от 1 до 64.");
+
+        var root = ReadSettingsObject(directory);
+        root["parallel_processing"] = parallelProcessing;
+        root["max_workers"] = maximumWorkers;
+        var autoAdd = root["auto_add_new_people"] as JsonObject ?? new JsonObject();
+        autoAdd["default"] = autoAddNewPeople;
+        autoAdd["installations"] ??= new JsonObject();
+        root["auto_add_new_people"] = autoAdd;
+        WriteSettingsObject(directory, root);
+    }
+
     public static void SavePassingThresholds(string directory, PassingThresholdSettings settings)
     {
         ValidateThreshold(settings.GlobalPercent, "Общий порог");
@@ -63,6 +160,53 @@ public static class ConfigurationService
             ["installations"] = installationValues
         };
         File.WriteAllText(settingsPath, root.ToJsonString(JsonOptions));
+    }
+
+    public static void SaveDatabaseBackupSettings(string directory, DatabaseBackupSettings settings)
+    {
+        ValidateDatabaseBackupSettings(settings);
+        var root = ReadSettingsObject(directory);
+        root["database_backups"] = new JsonObject
+        {
+            ["automatic_enabled"] = settings.AutomaticBackupsEnabled,
+            ["interval_days"] = settings.IntervalDays,
+            ["maximum_files"] = settings.MaximumBackupFiles,
+            ["before_changes"] = settings.BackupBeforeChanges,
+            ["confirm_row_deletion"] = settings.ConfirmRowDeletion,
+            ["confirm_source_deletion"] = settings.ConfirmSourceDeletion
+        };
+        WriteSettingsObject(directory, root);
+    }
+
+    public static void SaveDatabaseEditorSettings(string directory, DatabaseEditorSettings settings)
+    {
+        var root = ReadSettingsObject(directory);
+        root["database_editor"] = new JsonObject
+        {
+            ["hidden_columns"] = new JsonArray(settings.HiddenColumns
+                .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase)
+                .Select(value => JsonValue.Create(value))
+                .ToArray())
+        };
+        WriteSettingsObject(directory, root);
+    }
+
+    private static JsonObject ReadSettingsObject(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var settingsPath = Path.Combine(directory, "settings.json");
+        EnsureJson(settingsPath, DefaultSettingsDocument());
+        return JsonNode.Parse(File.ReadAllText(settingsPath)) as JsonObject
+               ?? throw new InvalidDataException("settings.json должен содержать JSON-объект.");
+    }
+
+    private static void WriteSettingsObject(string directory, JsonObject root) =>
+        File.WriteAllText(Path.Combine(directory, "settings.json"), root.ToJsonString(JsonOptions));
+
+    private static void WriteConfigurationFile(string directory, string fileName, JsonNode root)
+    {
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, fileName), root.ToJsonString(JsonOptions));
     }
 
     private static void EnsureJson<T>(string path, T value)
@@ -112,6 +256,35 @@ public static class ConfigurationService
             else if (property.Value.ValueKind == JsonValueKind.String)
                 AddUnique(variants, property.Value.GetString());
             result[canonical] = variants;
+        }
+        return result;
+    }
+
+    private static Dictionary<string, List<string>> LoadEditableInstallations(string path)
+    {
+        using var document = ReadDocument(path);
+        var root = document.RootElement;
+        if (root.TryGetProperty("installations", out var wrapped))
+            root = wrapped;
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("installations.json должен содержать объект с установками.");
+
+        var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in root.EnumerateObject())
+        {
+            var canonical = property.Name.Trim();
+            if (canonical.Length == 0)
+                continue;
+            var aliases = new List<string>();
+            if (property.Value.ValueKind == JsonValueKind.Array)
+                foreach (var item in property.Value.EnumerateArray())
+                    if (item.ValueKind == JsonValueKind.String &&
+                        !string.Equals(item.GetString()?.Trim(), canonical, StringComparison.OrdinalIgnoreCase))
+                        AddUnique(aliases, item.GetString());
+            else if (property.Value.ValueKind == JsonValueKind.String &&
+                     !string.Equals(property.Value.GetString()?.Trim(), canonical, StringComparison.OrdinalIgnoreCase))
+                AddUnique(aliases, property.Value.GetString());
+            result[canonical] = aliases;
         }
         return result;
     }
@@ -176,6 +349,33 @@ public static class ConfigurationService
             };
         }
 
+        var databaseBackups = new DatabaseBackupSettings();
+        if (root.TryGetProperty("database_backups", out var backups) &&
+            backups.ValueKind == JsonValueKind.Object)
+        {
+            databaseBackups = new DatabaseBackupSettings
+            {
+                AutomaticBackupsEnabled = ReadBoolean(backups, "automatic_enabled", true),
+                IntervalDays = ReadInteger(backups, "interval_days", 15, 1, 3650),
+                MaximumBackupFiles = ReadInteger(backups, "maximum_files", 2, 1, 100),
+                BackupBeforeChanges = ReadBoolean(backups, "before_changes", true),
+                ConfirmRowDeletion = ReadBoolean(backups, "confirm_row_deletion", true),
+                ConfirmSourceDeletion = ReadBoolean(backups, "confirm_source_deletion", true)
+            };
+        }
+
+        var hiddenColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (root.TryGetProperty("database_editor", out var editor) &&
+            editor.ValueKind == JsonValueKind.Object &&
+            editor.TryGetProperty("hidden_columns", out var hidden) &&
+            hidden.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in hidden.EnumerateArray())
+                if (item.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(item.GetString()))
+                    hiddenColumns.Add(item.GetString()!.Trim());
+        }
+
         var parallel = !root.TryGetProperty("parallel_processing", out var parallelValue) ||
                        parallelValue.ValueKind != JsonValueKind.False;
         var workers = root.TryGetProperty("max_workers", out var workersValue) && workersValue.TryGetInt32(out var parsed)
@@ -186,9 +386,35 @@ public static class ConfigurationService
             ModeFilter = modeFilter,
             AutoAddNewPeople = autoAdd,
             PassingThreshold = passingThreshold,
+            DatabaseBackups = databaseBackups,
+            DatabaseEditor = new DatabaseEditorSettings { HiddenColumns = hiddenColumns },
             ParallelProcessing = parallel,
             MaxWorkers = workers
         };
+    }
+
+    private static bool ReadBoolean(JsonElement parent, string name, bool fallback) =>
+        parent.TryGetProperty(name, out var value) &&
+        value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : fallback;
+
+    private static int ReadInteger(
+        JsonElement parent,
+        string name,
+        int fallback,
+        int minimum,
+        int maximum) =>
+        parent.TryGetProperty(name, out var value) && value.TryGetInt32(out var parsed)
+            ? Math.Clamp(parsed, minimum, maximum)
+            : fallback;
+
+    private static void ValidateDatabaseBackupSettings(DatabaseBackupSettings settings)
+    {
+        if (settings.IntervalDays is < 1 or > 3650)
+            throw new ArgumentException("Интервал резервного копирования должен быть от 1 до 3650 дней.");
+        if (settings.MaximumBackupFiles is < 1 or > 100)
+            throw new ArgumentException("Количество резервных копий должно быть от 1 до 100.");
     }
 
     private static double ReadThreshold(JsonElement value, string fieldName)
@@ -233,6 +459,29 @@ public static class ConfigurationService
         return result;
     }
 
+    private static Dictionary<string, Dictionary<string, string>> LoadEditableFioKeys(string path)
+    {
+        using var document = ReadDocument(path);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("fio_keys.json должен содержать JSON-объект.");
+
+        var result = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var section in document.RootElement.EnumerateObject())
+        {
+            var sectionName = section.Name.Trim();
+            if (sectionName.Length == 0 || section.Value.ValueKind != JsonValueKind.Object)
+                continue;
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in section.Value.EnumerateObject())
+                if (item.Value.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(item.Name) &&
+                    !string.IsNullOrWhiteSpace(item.Value.GetString()))
+                    values[item.Name.Trim()] = item.Value.GetString()!.Trim();
+            result[sectionName] = values;
+        }
+        return result;
+    }
+
     private static HashSet<string> LoadExcludedPeople(string path)
     {
         using var document = ReadDocument(path);
@@ -247,6 +496,20 @@ public static class ConfigurationService
                 if (name.Length > 0)
                     result.Add(name);
             }
+        return result;
+    }
+
+    private static List<string> LoadEditableExcludedPeople(string path)
+    {
+        using var document = ReadDocument(path);
+        var result = new List<string>();
+        if (document.RootElement.ValueKind != JsonValueKind.Object ||
+            !document.RootElement.TryGetProperty("people", out var people) ||
+            people.ValueKind != JsonValueKind.Array)
+            return result;
+        foreach (var item in people.EnumerateArray())
+            if (item.ValueKind == JsonValueKind.String)
+                AddUnique(result, item.GetString());
         return result;
     }
 
@@ -271,6 +534,16 @@ public static class ConfigurationService
             global = PassingThresholdSettings.DefaultPercent,
             installations = new Dictionary<string, double>()
         },
+        database_backups = new
+        {
+            automatic_enabled = true,
+            interval_days = 15,
+            maximum_files = 2,
+            before_changes = true,
+            confirm_row_deletion = true,
+            confirm_source_deletion = true
+        },
+        database_editor = new { hidden_columns = Array.Empty<string>() },
         parallel_processing = true,
         max_workers = 5
     };
@@ -304,4 +577,12 @@ public static class ConfigurationService
         ["TАМЕ"] = ["TAME", "ТАМЕ", "ТАМЭ", "КТД-200_720", "200720"],
         ["РНК ЦУП"] = ["РНК-ЦУП", "РНКЦУП", "ЦУП", "ИТР ЦУП", "ИТР"]
     };
+}
+
+public sealed class EditableConfigurationData
+{
+    public required Dictionary<string, List<string>> Installations { get; init; }
+    public required Dictionary<string, Dictionary<string, string>> FioKeys { get; init; }
+    public required List<string> ExcludedPeople { get; init; }
+    public required AnalyzerSettings Settings { get; init; }
 }

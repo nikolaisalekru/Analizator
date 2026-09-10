@@ -1,6 +1,7 @@
 <Window x:Class="Analizator.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Analizator"
         Title="Анализатор прохождения КТК"
         Icon="Assets/AppIcon.ico"
         Width="1180" Height="760" MinWidth="980" MinHeight="650"
@@ -32,6 +33,18 @@
                             Style="{StaticResource NavButtonStyle}"
                             Background="{StaticResource SidebarHoverBrush}"
                             Click="DashboardNavButton_Click" />
+                    <Button x:Name="DatabaseNavButton" Content="▤   База данных"
+                            Style="{StaticResource NavButtonStyle}"
+                            Click="DatabaseNavButton_Click" />
+                    <Button x:Name="StatisticsNavButton" Content="▥   Статистика"
+                            Style="{StaticResource NavButtonStyle}"
+                            Click="StatisticsNavButton_Click" />
+                    <Button x:Name="MonitoringNavButton" Content="▦   Мониторинг"
+                            Style="{StaticResource NavButtonStyle}"
+                            Click="MonitoringNavButton_Click" />
+                    <Button x:Name="PdfPhotoNavButton" Content="▤   Фото в PDF"
+                            Style="{StaticResource NavButtonStyle}"
+                            Click="PdfPhotoNavButton_Click" />
                     <Button x:Name="SettingsNavButton" Content="⚙   Настройки"
                             Style="{StaticResource NavButtonStyle}"
                             Click="SettingsNavButton_Click" />
@@ -86,7 +99,8 @@
                                     <DockPanel Margin="0,0,0,18">
                                         <StackPanel>
                                             <TextBlock Text="Исходные данные" FontSize="18" FontWeight="SemiBold" />
-                                            <TextBlock Text="Excel-файлы текущей обработки"
+                                            <TextBlock x:Name="AnalysisSourceDescriptionText"
+                                                       Text="Шаблон анализа и Excel-выгрузка"
                                                        Foreground="{StaticResource MutedTextBrush}" />
                                         </StackPanel>
                                         <CheckBox x:Name="AutoSelectCheckBox" DockPanel.Dock="Right"
@@ -94,7 +108,14 @@
                                                   Checked="AutoSelectCheckBox_Changed"
                                                   Unchecked="AutoSelectCheckBox_Changed" />
                                     </DockPanel>
-                                    <TextBlock Text="Таблица анализа" FontWeight="SemiBold" Margin="0,0,0,7" />
+                                    <TextBlock Text="Источник результатов КТК" FontWeight="SemiBold"
+                                               Margin="0,0,0,7" />
+                                    <ComboBox x:Name="AnalysisSourceComboBox" Height="35" SelectedIndex="0"
+                                              SelectionChanged="AnalysisSourceComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Excel-выгрузка" />
+                                        <ComboBoxItem Content="База данных" />
+                                    </ComboBox>
+                                    <TextBlock Text="Таблица анализа" FontWeight="SemiBold" Margin="0,17,0,7" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -105,17 +126,40 @@
                                         <Button Grid.Column="2" Content="Выбрать…" Click="BrowseAnalysisButton_Click"
                                                 Style="{StaticResource SecondaryButtonStyle}" />
                                     </Grid>
-                                    <TextBlock Text="Выгрузка КТК" FontWeight="SemiBold" Margin="0,17,0,7" />
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="10" />
-                                            <ColumnDefinition Width="105" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="ExportFileTextBox" IsReadOnly="True" />
-                                        <Button Grid.Column="2" Content="Выбрать…" Click="BrowseExportButton_Click"
-                                                Style="{StaticResource SecondaryButtonStyle}" />
-                                    </Grid>
+                                    <StackPanel x:Name="ExcelSourcePanel">
+                                        <TextBlock Text="Выгрузка КТК" FontWeight="SemiBold" Margin="0,17,0,7" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="105" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="ExportFileTextBox" IsReadOnly="True" />
+                                            <Button Grid.Column="2" Content="Выбрать…" Click="BrowseExportButton_Click"
+                                                    Style="{StaticResource SecondaryButtonStyle}" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DatabaseSourcePanel" Visibility="Collapsed">
+                                        <TextBlock Text="Месяц из базы данных" FontWeight="SemiBold"
+                                                   Margin="0,17,0,7" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="105" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="DatabaseMonthComboBox" Height="35"
+                                                      DisplayMemberPath="Display"
+                                                      SelectionChanged="DatabaseMonthComboBox_SelectionChanged" />
+                                            <Button Grid.Column="2" Content="Обновить"
+                                                    Click="RefreshDatabaseMonthsButton_Click"
+                                                    Style="{StaticResource SecondaryButtonStyle}" />
+                                        </Grid>
+                                        <TextBlock x:Name="DatabaseMonthDetailsText"
+                                                   Text="В базе пока нет доступных месяцев"
+                                                   Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                                                   Margin="1,6,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
                                     <TextBlock Text="Папка результата" FontWeight="SemiBold" Margin="0,17,0,7" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -161,7 +205,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Параметры" FontSize="18" FontWeight="SemiBold"
                                                Margin="0,0,0,15" />
-                                    <CheckBox x:Name="CreateBackupCheckBox" Content="Создать резервную копию"
+                                    <CheckBox x:Name="CreateBackupCheckBox" Content="Создать копию таблицы анализа"
                                               IsChecked="True" Margin="0,0,0,13" />
                                     <CheckBox x:Name="AutoAddPeopleCheckBox" Content="Добавлять новых сотрудников"
                                               IsChecked="True" Margin="0,0,0,13" />
@@ -197,6 +241,189 @@
                 </StackPanel>
             </ScrollViewer>
 
+            <Grid x:Name="DatabaseView" Visibility="Collapsed" Margin="34,28,34,32">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="18" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Единая база данных" FontSize="28" FontWeight="SemiBold" />
+                        <TextBlock Text="Загрузка выгрузок за несколько месяцев и хранение истории"
+                                   Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                Margin="0,14,0,0">
+                        <Button x:Name="ExportDatabaseSelectionButton" Content="Сформировать выгрузку…"
+                                Width="205" Margin="0,0,9,0"
+                                Click="ExportDatabaseSelectionButton_Click"
+                                Style="{StaticResource PrimaryButtonStyle}" />
+                        <Button x:Name="EditDatabaseRecordsButton" Content="Редактировать записи" Width="165"
+                                Margin="0,0,9,0" Click="EditDatabaseRecordsButton_Click"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button Content="Обновить" Width="100" Margin="0,0,9,0"
+                                Click="RefreshDatabaseButton_Click"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button Content="Открыть папку" Width="130"
+                                Click="OpenDatabaseFolderButton_Click"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled" Padding="0,0,7,0">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Попыток" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBlock x:Name="DatabaseAttemptsText" Text="0" FontSize="25"
+                                               FontWeight="SemiBold" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Сотрудников" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBlock x:Name="DatabasePeopleText" Text="0" FontSize="25"
+                                               FontWeight="SemiBold" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="4" Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Файлов" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBlock x:Name="DatabaseFilesCountText" Text="0" FontSize="25"
+                                               FontWeight="SemiBold" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="6" Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Период" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBlock x:Name="DatabasePeriodText" Text="—" FontSize="16"
+                                               FontWeight="SemiBold" Margin="0,8,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border x:Name="DatabaseDuplicateBorder" Margin="0,14,0,0" Padding="16,12"
+                                Background="#E8F6EF" BorderBrush="#BCE4D0" BorderThickness="1"
+                                CornerRadius="9">
+                            <TextBlock x:Name="DatabaseDuplicateText"
+                                       Foreground="#16764D" TextWrapping="Wrap" />
+                        </Border>
+
+                        <Border x:Name="DatabaseInstallationWarningBorder" Margin="0,10,0,0" Padding="16,12"
+                                Background="#FFF4E5" BorderBrush="#F2CF94" BorderThickness="1"
+                                CornerRadius="9" Visibility="Collapsed">
+                            <TextBlock x:Name="DatabaseInstallationWarningText"
+                                       Foreground="#A15C00" TextWrapping="Wrap" />
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <DockPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Добавить выгрузки" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="Можно выбрать сразу несколько файлов Excel и JSON, в том числе за разные месяцы"
+                                                   Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="SelectDatabaseFilesButton" Content="Выбрать файлы…"
+                                                Width="135" Margin="0,0,9,0"
+                                                Click="SelectDatabaseFilesButton_Click"
+                                                Style="{StaticResource SecondaryButtonStyle}" />
+                                        <Button x:Name="ClearDatabaseFilesButton" Content="Очистить"
+                                                Width="95" Click="ClearDatabaseFilesButton_Click"
+                                                Style="{StaticResource SecondaryButtonStyle}" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <ListBox x:Name="DatabaseFilesListBox" Grid.Row="1" Height="105"
+                                         Margin="0,15,0,0" DisplayMemberPath="Name"
+                                         BorderBrush="{StaticResource BorderBrush}" />
+                                <Grid Grid.Row="2" Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="9" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ProgressBar x:Name="DatabaseImportProgressBar" Height="10"
+                                                 Maximum="100" VerticalAlignment="Center"
+                                                 Foreground="{StaticResource AccentBrush}" Background="#E9EEF6" />
+                                    <Button x:Name="CancelDatabaseImportButton" Grid.Column="2"
+                                            Content="Отменить" Width="100" IsEnabled="False"
+                                            Click="CancelDatabaseImportButton_Click"
+                                            Style="{StaticResource SecondaryButtonStyle}" />
+                                    <Button x:Name="ImportDatabaseFilesButton" Grid.Column="4"
+                                            Content="Загрузить в базу" Width="155"
+                                            Click="ImportDatabaseFilesButton_Click"
+                                            Style="{StaticResource PrimaryButtonStyle}" />
+                                </Grid>
+                                <TextBlock x:Name="DatabaseImportStatusText" Grid.Row="3"
+                                           Text="Выберите одну или несколько выгрузок"
+                                           Foreground="{StaticResource MutedTextBrush}" Margin="0,9,0,0"
+                                           TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <DockPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Загруженные файлы" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="DatabasePathText" Text="Путь к базе"
+                                                   Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                                                   Margin="0,3,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button x:Name="DeleteDatabaseSourceButton" DockPanel.Dock="Right"
+                                            Content="Удалить выбранный" Width="155"
+                                            Click="DeleteDatabaseSourceButton_Click"
+                                            Style="{StaticResource SecondaryButtonStyle}" />
+                                </DockPanel>
+                                <DataGrid x:Name="DatabaseHistoryDataGrid" Grid.Row="1" Height="270"
+                                          Margin="0,15,0,0" AutoGenerateColumns="False" IsReadOnly="True"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                          BorderBrush="{StaticResource BorderBrush}" SelectionMode="Single">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Файл" Binding="{Binding FileName}" Width="*" />
+                                        <DataGridTextColumn Header="Формат" Binding="{Binding FormatDisplay}" Width="95" />
+                                        <DataGridTextColumn Header="Период" Binding="{Binding PeriodDisplay}" Width="190" />
+                                        <DataGridTextColumn Header="Строк" Binding="{Binding RowsCount}" Width="75" />
+                                        <DataGridTextColumn Header="Замечаний" Binding="{Binding ErrorCount}" Width="90" />
+                                        <DataGridTextColumn Header="Загружен" Binding="{Binding ImportedAtDisplay}" Width="135" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
             <Grid x:Name="SettingsView" Visibility="Collapsed" Margin="34,28,34,32">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -205,7 +432,7 @@
                 </Grid.RowDefinitions>
                 <StackPanel>
                     <TextBlock Text="Настройки" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Пути программы, порог прохождения и конфигурации"
+                    <TextBlock Text="Пути программы, порог прохождения, резервные копии и конфигурации"
                                Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
                 </StackPanel>
                 <Grid Grid.Row="2">
@@ -243,11 +470,31 @@
                         </Border>
                         <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
                             <StackPanel>
+                                <TextBlock Text="Резервные копии базы" FontSize="17" FontWeight="SemiBold" />
+                                <TextBlock x:Name="DatabaseBackupSummaryText" Text="Загрузка настройки…"
+                                           Foreground="{StaticResource MutedTextBrush}"
+                                           Margin="0,5,0,12" TextWrapping="Wrap" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Настроить…" Click="EditDatabaseBackupSettingsButton_Click"
+                                            Style="{StaticResource SecondaryButtonStyle}" />
+                                    <Button Grid.Column="2" Content="Создать сейчас"
+                                            Click="CreateDatabaseBackupNowButton_Click"
+                                            Style="{StaticResource SecondaryButtonStyle}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                            <StackPanel>
                                 <TextBlock Text="Конфигурации" FontSize="17" FontWeight="SemiBold"
                                            Margin="0,0,0,12" />
                                 <ListBox x:Name="ConfigFilesListBox" Height="180" BorderThickness="0"
                                          SelectionChanged="ConfigFilesListBox_SelectionChanged" />
-                                <Button Content="Открыть папку config" Margin="0,12,0,0"
+                                <Button Content="Открыть папку configs" Margin="0,12,0,0"
                                         Click="OpenConfigFolderButton_Click"
                                         Style="{StaticResource SecondaryButtonStyle}" />
                             </StackPanel>
@@ -255,34 +502,7 @@
                     </StackPanel>
                     </ScrollViewer>
                     <Border Grid.Column="2" Style="{StaticResource CardStyle}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Margin="0,0,0,12">
-                                <TextBlock x:Name="ConfigEditorTitleText" Text="Выберите конфигурацию"
-                                           FontSize="18" FontWeight="SemiBold" />
-                                <TextBlock x:Name="ConfigEditorPathText" FontSize="11"
-                                           Foreground="{StaticResource MutedTextBrush}" />
-                            </StackPanel>
-                            <TextBox x:Name="ConfigEditorTextBox" Grid.Row="1" IsEnabled="False"
-                                     FontFamily="Consolas" FontSize="13" AcceptsReturn="True" AcceptsTab="True"
-                                     VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
-                                     HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" />
-                            <DockPanel Grid.Row="2" Margin="0,14,0,0">
-                                <TextBlock x:Name="ConfigStatusText" Text="Выберите файл слева"
-                                           Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
-                                <Button x:Name="ReloadConfigButton" DockPanel.Dock="Right" Content="Перечитать"
-                                        Width="105" Margin="0,0,9,0" IsEnabled="False"
-                                        Click="ReloadConfigButton_Click"
-                                        Style="{StaticResource SecondaryButtonStyle}" />
-                                <Button x:Name="SaveConfigButton" DockPanel.Dock="Right" Content="Сохранить"
-                                        Width="110" IsEnabled="False" Click="SaveConfigButton_Click"
-                                        Style="{StaticResource PrimaryButtonStyle}" />
-                            </DockPanel>
-                        </Grid>
+                        <local:ConfigurationEditor x:Name="ConfigEditor" Saved="ConfigEditor_Saved" />
                     </Border>
                 </Grid>
             </Grid>

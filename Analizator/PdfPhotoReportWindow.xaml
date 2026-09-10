@@ -1,0 +1,65 @@
+<Window x:Class="Analizator.PdfPhotoReportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Фотографии в PDF" Icon="Assets/AppIcon.ico"
+        Width="860" Height="610" MinWidth="760" MinHeight="560"
+        WindowStartupLocation="CenterOwner" Closing="Window_Closing">
+    <Grid Background="{StaticResource WindowBrush}">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="28,22">
+            <DockPanel>
+                <Border Width="46" Height="46" CornerRadius="12" Background="#EAF0FF" Margin="0,0,15,0">
+                    <TextBlock Text="▤" Foreground="{StaticResource AccentBrush}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel>
+                    <TextBlock Text="Фотографии в PDF" FontSize="25" FontWeight="SemiBold"/>
+                    <TextBlock Text="Реестр отчётов КТК и контроль наличия фотографии" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,18,24,24">
+                <Border Style="{StaticResource CardStyle}" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="Папка отчётов" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="PDF будут найдены во всех вложенных папках" Foreground="{StaticResource MutedTextBrush}" Margin="0,3,0,12"/>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
+                            <TextBox x:Name="SourceFolderTextBox" Height="38" VerticalContentAlignment="Center" TextChanged="SourceFolderTextBox_TextChanged"/>
+                            <Button x:Name="BrowseFolderButton" Grid.Column="2" Content="Выбрать папку" Click="BrowseFolderButton_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <Grid Margin="0,18,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="300"/></Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource CardStyle}" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="Период" FontSize="18" FontWeight="SemiBold"/>
+                            <CheckBox x:Name="UsePeriodCheckBox" Content="Ограничить отчёты по дате" Margin="0,13,0,12" Checked="UsePeriodCheckBox_Changed" Unchecked="UsePeriodCheckBox_Changed"/>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock Text="С" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/><DatePicker x:Name="StartDatePicker" Height="35" Margin="0,4,0,0" IsEnabled="False"/></StackPanel>
+                                <StackPanel Grid.Column="2"><TextBlock Text="По" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/><DatePicker x:Name="EndDatePicker" Height="35" Margin="0,4,0,0" IsEnabled="False"/></StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="Что попадёт в Excel" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="Установка, ФИО, дата, сценарий и режим" Margin="0,13,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="Признак фото, число изображений и страниц" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="Папка отчёта и ссылка на исходный PDF" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                            <Border Background="#F7F9FC" CornerRadius="8" Padding="12,10" Margin="0,16,0,0"><TextBlock Text="Фотографией считается встроенное изображение не меньше 100 × 100 px." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap"/></Border>
+                            <CheckBox x:Name="OpenResultCheckBox" Content="Открыть Excel после создания" IsChecked="True" Margin="0,14,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0" Padding="20,16">
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="105"/><ColumnDefinition Width="10"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock x:Name="StatusText" Text="Выберите папку с PDF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><ProgressBar x:Name="ProgressBar" Height="7" Maximum="100" Margin="0,9,28,0" Foreground="{StaticResource AccentBrush}" Background="#E9EEF6"/></StackPanel>
+                        <Button x:Name="CancelButton" Grid.Column="1" Content="Отменить" IsEnabled="False" Click="CancelButton_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                        <Button x:Name="GenerateButton" Grid.Column="3" Content="Сформировать таблицу" IsEnabled="False" Click="GenerateButton_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
